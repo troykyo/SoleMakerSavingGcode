@@ -1,0 +1,177 @@
+/* Demonstration file for AULib (Andrew's Utilities library).
+* Download and documentation:
+*   http://www.imaginary-institute.com/resources/AULibrary/AULibrary.php
+* Show use of AUCurve 
+* Version 1 - Andrew - Sept 6, 2014
+*/
+
+import AULib.*;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+
+float xc = 310;
+float yc = 119.22;
+
+float[] AXH = { xc + 74.75, xc + 74.75, xc + 107.34, xc + 234.44, xc + 378.17, xc + 488.52, xc + 539.8, xc + 528.97, xc + 488.96, xc + 387.34, xc + 275.47, xc + 191.04, xc + 191.04}; //HEEL
+float[] AYH = { yc + 44.7, yc + 44.7, yc + 69.09, yc + 156.67, yc + 202.58, yc + 242.52, yc + 329.18, yc + 378.81, yc + 432.06, yc + 442.23, yc + 407.03, yc + 380, yc + 380 }; //HEEL
+
+float[] AXT = { xc + 191.04, xc + 191.04, xc - 0.8, xc - 40.05, xc - 85.53, xc - 134.58, xc - 173, xc - 201.64, xc - 226.94, xc - 224.75, xc - 199.85, xc - 150.82, xc - 72.46, xc - 8.47, xc, xc + 40.05, xc + 74.75, xc + 74.75 }; //TOE
+float[] AYT = { yc + 380, yc + 380, yc + 318.77, yc + 297.64, yc + 270.27, yc + 229.92, yc + 190.19, yc + 150.3, yc + 95.23, yc + 32.45, yc - 2.18, yc - 25.01, yc - 23.01, yc - 3.59, yc, yc + 20, yc + 44.7, yc + 44.7 }; //TOE
+
+
+int NumKnots = AXH.length;
+float[][] knots = new float[NumKnots][2];
+AUCurve MyCurve;
+boolean Redraw = true;
+
+PrintWriter txt;
+
+import java.util.Locale;
+float DPMM = 2.834646;//dots per mm
+//processing has 72 DPI, one inch is 25.4 mm
+//so we have 2,834645669 dots per mm  
+
+//Printer settings
+float ext = 0; //extrusion step   
+int speed = 600;
+float layerHeight = 0.3;
+float currentLayer = 0;
+float extrusionCoefficient = .2;
+int layers = 5;
+int retraction = 3;
+
+void setup() {
+  Locale.setDefault(Locale.US);//so it writes 0.1 instead of 0,1 even in Netherlands
+  size(1196, 845);
+  colorMode(HSB);  // all color stuff is in HSB
+  newCurve();  
+  println("space  make a new curve");
+  println("-      make a new curve with fewer segments");
+  println("+      make a new curve with more segments");
+  println("s      save the image to the sketch's directory");
+  println("q      quit");
+}
+
+// draw the curve as a large number of equally-spaced dots
+void draw() {
+  if (!Redraw) return;  // don't bother redrawing the same thing
+  background(255);      // white background
+  stroke(0);           // dots don't have an outline
+  Redraw = false;    // don't draw again until something changes
+}
+
+void contourWrite() {
+  txt.println(";CONTOUR EDGES");
+  int numSteps = 1000;   // how many dots to draw
+  float startX = knots[0][0];
+  float startY = knots[0][1];
+  for (int i=0; i<numSteps; i++) {
+    float t = norm(i, 0, numSteps);         // t runs from [0,1]
+    float endX = MyCurve.getX(t);                // get X at this t
+    float endY = MyCurve.getY(t);                // get Y at this t
+    line(startX, startY, endX, endY);  // draw this dot
+    edgeWrite(startX, startY, endX, endY);
+    startX = endX;
+    startY = endY;
+  }
+    float endX   = knots[knots.length-1][0];
+    float endY   = knots[knots.length-1][1];
+    edgeWrite(startX, startY, endX, endY);
+}
+
+void edgeWrite(float startX, float startY, float endX, float endY) {
+  //auxiliary for contourWrite and insoleWrite
+  //write coordinates in mm
+  int L = 4;//digits before dot
+  int R = 2;//digits after dot
+//***************************USING G2 between two points with I and J being the differernce between the two successing points might be an option??****************
+  ext = ext + dist(startX, startY, endX, endY)*extrusionCoefficient;
+  if (startX > (0.05*DPMM)) {
+    txt.println("G1 X "+nf(startX / DPMM, L, R)+" Y "+nf(startY / DPMM, L, R)+" E "+nf((ext-retraction) / DPMM, L, R));
+    txt.println(" G1 X "+nf(endX / DPMM, L, R)+" Y "+nf(endY / DPMM, L, R)+" E "+nf(ext / DPMM, L, R));
+  }
+}
+
+void newCurve() {
+  // each knot row: 0:x 1:y 2:weight 3:hue 4:saturation 5:brightness
+  if(key == ENTER){   
+  for (int i=0; i<knots.length; i++) {
+    knots[i][0] = AXH[i];  // a value for X   
+    knots[i][1] = AYH[i]; // a value for Y not
+  }
+  }
+  /* Make the new curve. Give it the knots, tell it we have 2 
+   * geometry values at the start of each row (the X and Y values),
+   * and close it. Remember the geometry values must always come 
+   * at the start of each row in the knots.
+   */
+  MyCurve = new AUCurve(knots, 2, false);   
+  Redraw = true;    // we have a new curve, so draw it
+}
+
+void startGcode() {// currently for an Ultimaker 2 Extended.  Cut and Paste from Cura generated gCode
+  txt.println(";FLAVOR:UltiGCode");
+  txt.println("; TIME:400");
+  txt.println(";MATERIAL:160");
+  txt.println("; MATERIAL2: 0");
+  txt.println(";NOZZLE_DIAMETER:0.400000");
+  txt.println(";NOZZLE_DIAMETER2:  0.400000");
+  txt.println(";Layer count: 98");
+  txt.println(";LAYER: 0");
+  txt.println("M107");
+}
+
+void endGcode() {// currently for an Ultimaker 2 Extended.  Cut and Paste from Cura generated gCode
+  txt.println("M107");
+  txt.println("G10");
+  txt.println("G0 F9000 X110.000 Y126.900 Z15.000");
+  txt.println("M25 ;Stop reading from this point on.");
+  txt.println(";CURA_PROFILE_STRING:eNrtWt1v2zYQfxWC/RF8bLHGk2S7aWvoYe2SvqRDgXhYmxeBlmiLi0QKJBXHCfy/746iFNlRunQN1o/JDw70093xePe7j6LO6YapOGN8lZnIHwXemuZ5bDKeXAimNUATTzGjaGK4FDETdJGzaK4q5mmZ8zTOrYGuwnNvycFGyoTmZhOFvlcqLkysS8bSaNo8GlaUTFFTKRaFQQ8aRj3guA+c9IHTFlywdOe0I9/TVVlKZaK5rJKMixVZVDxPy5wa5uH3UqoipmnGNNw6+l0K1qjEaUXzmF0ZVdl3r6XJvDUvWWzkmqnohOaadYD4UuZVwaJg6kl5zWKdcZanTgwCRQsGLqYc/hpQD0cvpndhDMUdcNwHTvrAaRdc5nIdBb4/8j0hr69zcIlfs/1E18maoFQHpYWshIkmo2kXtRFxr4Lnu+8KLmJ4uGR5FOy+SWSxgMhHv+b5ngIvdiIMPoRdiUyWiHkLaYwsdqg39iwd/XjNU5PFS9CQCi/rycVfLAEOcnEBwZCXTOW0tJ4j66de7aO7djDt2K8JXr8ALnNh2V0/o5gtA6oY7WBcaGb8feCqAyRS5jY4rn44UAQST5sSS12NXXCgXM4Fg3jZ+DpoRctojKfbpyZoORMrkzn/0diyAl9ddU8d5u7od57igl5ZpHVrCSiUC/DWgRmjUOx8aRx16+o3kIvucx2zW3bnsQs18h8KkFs+QkVCgbG4jmVjwNWX2ZQsOoUb6xaiYgVN53lbtrG1XLs3bcGrDRBeGyoSZPNRi193YZQvuaI5ct4dzIsSqqCQqWtsC3CzG3PIuqJLiDJVKy5sHO2zFdElTZDG4wZdUM32SHmLo4rlJlSDk4cOxRQwdVcpPNp/e6tqSxVfUq6ABzF0bMupDoYWwhrQldNHouloD+07s9XYOXHJr6D0lOLAzrgSth3gqIB0xbQO3KdEFi0pujIQElkyES+40X0C0AVwjFxCnA03tlU7sTKvIBmQIeDQKmrqO2EYr/gqOgz2oA1APwENlBmtEkz17CznCUsJNa/ITUo3W/w2DP5gMW4PZq+p5gmBujVwqn5FTjGApC4mUMk7k3NL/oSLgszN7vjckhNgKsDdiQim3+NcIngOvHOTqz70xLVpAqFJa8W6bdf9dVt0oHV99qqjlUhtulr4DFbfBS99cnbTOw63ZPaHgGZs9Y0kNE3JRlaKyLUgIEs6sgQpgeb8l625h5q6Y+ZtGBD3mUFbUBDsS5pXTB+8BW+bN3QBnaUyjJQSggeUgmQcvHsRtgKQIGKHRQrZwUMbBSzoA3D1qJXE7JM1NxkxGSPQ/YhcLsGPF+SDTz766Ae0K/Lhl49oCNogYSLV0OO0FTr3nbModH5XJCDnATQHcnLTnSZbp4BHNqsFSTEiwbQo4K4hOW6ve/uZXTMlrZK7XErq7o7nnIS+T47HexpOkIyLAi5GsIUTcC25+PxDCF1RLuxRu5cB7laG2Mzj2lQAyemKESnI6ZvfiE4UYwKCHhyR905mNBp5EKOm6o5FSt6+camZkLMerzp3wXqDolQ2Ue+CiX+vgpVLLWFvVcgTvkQGkgyuQLh5CpEIyAM+M8UgVdB3dmgH4Tg+hJCMff8flO2yUrOsKU1KoMmRevIRHKQYP5Sot7BnyCc4lcGYIFoWDFNoOaMgxlA0ll8/+6Mp+DAlHw5DoCx+9bPtnFSlO5JCxBuPWm/YJRNQIWj2lv6fvNR9pfEMvLWO4oZAuCYSCOJ8X9MN1OrkfqPasBK6gq4L8eX9PvT3gRn0IAl3wvEAdFttPVvj4dDiH6HFT768xdeTYh70WQr/lSn/686db32azO/pbrOzNa5PeApqhtASmg77JRMo8PsnUOA/6giyZx3e9P+Tc3sw9x906SVX2nxP136kyRveM3rn/mdOX9QJhok9TOzHn9jjYWIPE/v/ObHDBw2vsfqhJvawpgxryt6aMv6aawrqhMNqM6w2j7/aTIbV5ptabcLHW22GLek/25LGD5qdE3D6B1oYhtVwWA2H1VCkk+9tNUSd8bBODuvk466T7gct3V8xtODtf7HWv9fZEbJIR0IxmLEJGyX6MvIgCXWbOXa8bBfWuvksmFlDZdpLJ5VSNsQNhTEBNtGAtOgzss5Aoa10u0wUVW54mbftQunRwWyeQVDxNAwurDeW5ZZFaHT+RDz1ICbmW/KPLrEAG/f+BnWV/Wo=");
+}
+void layerStart() {
+
+  currentLayer = currentLayer + layerHeight;
+  txt.println("G0  F"+nf(speed) +" Z"+nf(currentLayer));
+}
+
+void stop() {
+  startGcode();
+  txt.println("G0  F"+nf(speed) +" Z"+nf(layerHeight)); //Start Layer
+  currentLayer = layerHeight;
+  for (int i = 0; i < layers; i++) {
+    //insoleWrite();
+    contourWrite();
+    layerStart();
+  }
+  endGcode();
+  txt.flush(); 
+  txt.close(); 
+}
+
+void keyPressed() {
+  switch (key) {
+    case ' ':
+    SimpleDateFormat sdf = new SimpleDateFormat("-yyyy-MM-dd/HH-mm"); 
+    Date now = new Date();
+    txt = createWriter("SOLE"+sdf.format(now) + "_HEEL.gcode");
+      stop();
+      exit();
+      break;
+    case '-':
+      NumKnots = max(4, NumKnots-1);  // use fewer knots
+      newCurve();
+      break;
+    case '+':
+      NumKnots++;   // use more knots
+      newCurve();
+      break;
+    case 's':
+      saveFrame();  // save the results to this directory
+      break;
+    case 'q':
+      exit();       // quit!
+      break;
+  }
+}
