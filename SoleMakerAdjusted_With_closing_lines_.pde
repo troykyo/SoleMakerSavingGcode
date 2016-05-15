@@ -12,6 +12,8 @@
 
 import megamu.mesh.*;
 import processing.pdf.*;
+//library to find extra points on a Catmull-Rom spline
+import AULib.*;
 
 //a few utilities for generating filenames based on day and time:
 import java.text.SimpleDateFormat;
@@ -42,6 +44,8 @@ float[] AXT = { xc + 191.04, xc + 191.04, xc - 0.8, xc - 40.05, xc - 85.53, xc -
 
 float[] AYH = { yc + 44.7, yc + 44.7, yc + 69.09, yc + 156.67, yc + 202.58, yc + 242.52, yc + 329.18, yc + 378.81, yc + 432.06, yc + 442.23, yc + 407.03, yc + 380, yc + 380 }; //HEEL
 float[] AYT = { yc + 380, yc + 380, yc + 318.77, yc + 297.64, yc + 270.27, yc + 229.92, yc + 190.19, yc + 150.3, yc + 95.23, yc + 32.45, yc - 2.18, yc - 25.01, yc - 23.01, yc - 3.59, yc, yc + 20, yc + 44.7, yc + 44.7 }; //TOE
+
+AUCurve MyCurve;
 
 //coding of the insole
 final int MAXNRINPOINTS = 1000;
@@ -162,7 +166,7 @@ void edgeWrite(float startX, float startY, float endX, float endY) {
   //write coordinates in mm
   int L = 4;//digits before dot
   int R = 2;//digits after dot
-
+//***************************USING G2 between two points with I and J being the differernce between the two successing points might be an option??****************
   ext = ext + dist(startX, startY, endX, endY)*extrusionCoefficient;
   if (startX > (0.05*DPMM)) {
     txt.println("G1 X "+nf(startX / DPMM, L, R)+" Y "+nf(startY / DPMM, L, R)+" E "+nf((ext-retraction) / DPMM, L, R));
@@ -176,18 +180,20 @@ void contourWrite() {
   //essentially a variation on contourDraw
   if (nrCoPoints > 1) {
     txt.println(";CONTOUR EDGES");
+    int numSteps = 1000;
     float startX = coPoints[0][0];
     float startY = coPoints[0][1];
-    for (int i=1; i < nrCoPoints; i++) {
-      float endX   = coPoints[i][0];
-      float endY   = coPoints[i][1];
+    for (int i=0; i < numSteps; i++) {
+      float t = norm(i, 0, numSteps);         // t runs from [0,1]
+      float endX = MyCurve.getX(t);           // get X at this t
+      float endY = MyCurve.getY(t);           // get Y at this t
       //write the contour
       edgeWrite(startX, startY, endX, endY);
       startX = endX;
       startY = endY;
     }
-    float endX   = coPoints[0][0];
-    float endY   = coPoints[0][1];
+    float endX   = coPoints[nrCoPoints][0];
+    float endY   = coPoints[nrCoPoints][1];
     edgeWrite(startX, startY, endX, endY);
   }   //end if
 }
@@ -403,6 +409,7 @@ void keyPressed() {
         coPoints[nrCoPoints  ][0] = AXT[i]*s;
         coPoints[nrCoPoints++][1] = AYT[i]*s;
       }
+      MyCurve = new AUCurve(coPoints, 2, false);
       Part = TOE;
     } else if (Part == TOE) {
       println("write to files SOLE"+sdf.format(now)+"_TOE.pdf"+ " and "+"SOLE"+sdf.format(now)+"_TOE.txt");
@@ -433,6 +440,7 @@ void keyPressed() {
         coPoints[nrCoPoints  ][0] = (AXH[i] - (xc + 40))*s;
         coPoints[nrCoPoints++][1] = AYH[i]*s;
       }
+      MyCurve = new AUCurve(coPoints, 2, false);
     }
     println("TYPE 'DELETE' TO ENTER A DIFFERENT SIZE");
     println("TYPE 'i' TO ENTER INSOLE MODE");
@@ -456,7 +464,7 @@ void stop() {
   txt.println("G0  F"+nf(speed) +" Z"+nf(layerHeight)); //Start Layer
   currentLayer = layerHeight;
   for (int i = 0; i < layers; i++) {
-    insoleWrite();
+    //insoleWrite();
     contourWrite();
     layerStart();
   }
