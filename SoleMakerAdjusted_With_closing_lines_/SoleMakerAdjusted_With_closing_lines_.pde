@@ -45,13 +45,11 @@ float[] AXT = { xc + 191.04, xc + 191.04, xc - 0.8, xc - 40.05, xc - 85.53, xc -
 float[] AYH = { yc + 44.7, yc + 44.7, yc + 69.09, yc + 156.67, yc + 202.58, yc + 242.52, yc + 329.18, yc + 378.81, yc + 432.06, yc + 442.23, yc + 407.03, yc + 380, yc + 380 }; //HEEL
 float[] AYT = { yc + 380, yc + 380, yc + 318.77, yc + 297.64, yc + 270.27, yc + 229.92, yc + 190.19, yc + 150.3, yc + 95.23, yc + 32.45, yc - 2.18, yc - 25.01, yc - 23.01, yc - 3.59, yc, yc + 20, yc + 44.7, yc + 44.7 }; //TOE
 
-int NumKnotsH = AXH.length;
-float[][] knotsH = new float[NumKnotsH][2];
-int NumKnotsT = AXT.length;
-float[][] knotsT = new float[NumKnotsT][2];
+int NumKnots = AXH.length;
+float[][] knots = new float[NumKnots][2];
 
-AUCurve MyCurveH;
-AUCurve MyCurveT;
+AUCurve MyCurve;
+//AUCurve MyCurveT;
 
 //coding of the insole
 final int MAXNRINPOINTS = 1000;
@@ -186,37 +184,20 @@ void contourWrite() {
   if (nrCoPoints > 1) {
     txt.println(";CONTOUR EDGES");
     int numSteps = 5000;
-    if (Part == TOE) {
-      float startX = knotsT[0][0];
-      float startY = knotsT[0][1];
-      for (int i=0; i < numSteps; i++) {
-        float t = norm(i, 0, numSteps);         // t runs from [0,1]
-        float endX = MyCurveT.getX(t);           // get X at this t
-        float endY = MyCurveT.getY(t);           // get Y at this t
-        //write the contour
-        edgeWrite(startX, startY, endX, endY);
-        startX = endX;
-        startY = endY;
-      }
-      float endXC = knotsT[0][0];
-       float endYC = knotsT[0][1];
-       edgeWrite(startX, startY, endXC, endYC);
-    } else if (Part == HEEL) {
-      float startX = knotsH[0][0];
-      float startY = knotsH[0][1];
-      for (int i=0; i < numSteps; i++) {
-        float t = norm(i, 0, numSteps);         // t runs from [0,1]
-        float endX = MyCurveH.getX(t);           // get X at this t
-        float endY = MyCurveH.getY(t);           // get Y at this t
-        //write the contour
-        edgeWrite(startX, startY, endX, endY);
-        startX = endX;
-        startY = endY;
-      }
-      float endXC = knotsH[0][0];
-       float endYC = knotsH[0][1];
-       edgeWrite(startX, startY, endXC, endYC);
+    float startX = knots[0][0];
+    float startY = knots[0][1];
+    for (int i=0; i < numSteps; i++) {
+      float t = norm(i, 0, numSteps);         // t runs from [0,1]
+      float endX = MyCurve.getX(t);           // get X at this t
+      float endY = MyCurve.getY(t);           // get Y at this t
+      //write the contour
+      edgeWrite(startX, startY, endX, endY);
+      startX = endX;
+      startY = endY;
     }
+    float endXC = knots[0][0];
+    float endYC = knots[0][1];
+    edgeWrite(startX, startY, endXC, endYC);
   }   //end if
 }
 
@@ -432,12 +413,13 @@ void keyPressed() {
         coPoints[nrCoPoints  ][0] = AXT[i]*s;
         coPoints[nrCoPoints++][1] = AYT[i]*s;
       }
-
-      for (int i=0; i<knotsT.length; i++) {
-        knotsT[i][0] = AXT[i]*s;  // a value for X   
-        knotsT[i][1] = AYT[i]*s; // a value for Y not
+      NumKnots = AXT.length;
+      knots = new float[NumKnots][2];
+      for (int i=0; i<knots.length; i++) {
+        knots[i][0] = AXT[i]*s;  // a value for X   
+        knots[i][1] = AYT[i]*s; // a value for Y not
       }
-      MyCurveT = new AUCurve(knotsT, 2, false);
+      MyCurve = new AUCurve(knots, 2, false);
       Part = TOE;
     } else if (Part == TOE) {
       println("write to files SOLE"+sdf.format(now)+"_TOE.pdf"+ " and "+"SOLE"+sdf.format(now)+"_TOE.txt");
@@ -468,11 +450,11 @@ void keyPressed() {
         coPoints[nrCoPoints  ][0] = (AXH[i] - (xc + 40))*s;
         coPoints[nrCoPoints++][1] = AYH[i]*s;
       }
-      for (int i=0; i<knotsH.length; i++) {
-        knotsH[i][0] = (AXH[i] -(xc + 40))*s;  // a value for X   
-        knotsH[i][1] = AYH[i]*s; // a value for Y not
+      for (int i=0; i<knots.length; i++) {
+        knots[i][0] = (AXH[i] -(xc + 40))*s;  // a value for X   
+        knots[i][1] = AYH[i]*s; // a value for Y not
       }
-      MyCurveH = new AUCurve(knotsH, 2, false);
+      MyCurve = new AUCurve(knots, 2, false);
     }
     println("TYPE 'DELETE' TO ENTER A DIFFERENT SIZE");
     println("TYPE 'i' TO ENTER INSOLE MODE");
