@@ -1,3 +1,4 @@
+ ext = ext + (dist(startX, startY, endX, endY)*FilamentDiameter*LayerHeight)/(pi*NozzleDiameterˆ2)*extrusionCoefficient;
 //Welcome to SOLEMAKER, version which saves in  file too
 //(C) Loe Feijs and Troy Nachtigall at TU/e 2015           
 //move mouse and click at successive interesting points  
